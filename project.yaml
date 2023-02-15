@@ -29,12 +29,30 @@ dataSources:
     mapping:
       file: ./dist/index.js
       handlers:
-        - handler: handleBlock
-          kind: substrate/BlockHandler
-        - handler: handleEvent
+        - handler: handlePoolCreated
           kind: substrate/EventHandler
           filter:
-            module: balances
-            method: Deposit
-        - handler: handleCall
-          kind: substrate/CallHandler
+            module: dex
+            method: PoolCreated
+
+templates:
+  - name: Pool
+    kind: substrate/Runtime
+    mapping:
+      file: ./dist/index.js
+      handers:
+        - handler: handleLiquidityAdded
+          kind: substrate/EventHandler
+          filter:
+            module: dex
+            method: LiquidityAdded
+        - handler: handleLiquidityRemoved
+          kind: substrate/EventHandler
+          filter:
+            module: dex
+            method: LiquidityRemoved
+        - handler: handleSwapExecuted
+          kind: substrate/EventHandler
+          filter:
+            module: dex
+            method: SwapExecuted

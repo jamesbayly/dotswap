@@ -2,14 +2,74 @@
 # Add the `@index` or `@index(unique: true)` annotation after any non-key field
 # https://academy.subquery.network/build/graphql.html#indexing-by-non-primary-key-field
 
-type StarterEntity @entity {
-  id: ID! #id is a required field
-  field1: Int!
+type Dex @entity {
+  id: ID!
+}
 
-  field2: String #filed2 is an optional field
-  field3: BigInt
+type Pool @entity {
+  id: ID! # DEX Pool address
+  createdAtBlockHeight: BigInt!
+  # createdAtTimestamp: BigInt!
+  creator: User!
+  lpToken: String!
+}
 
-  field4: Date
+type User @entity {
+  id: ID! # User adddress
+}
 
-  field5: Boolean
+# trading and liquidity data around a user and their activity on a given exchange
+type UserPoolData @entity {
+  id: ID! # ID is concatenation of Pool and user address
+  user: User!
+  Pool: Pool!
+}
+
+type AddLiquidityEvent @entity {
+  id: ID!
+  userPool: UserPoolData!
+  blockHeight: BigInt!
+  amount: BigInt! # In DOT
+  tokenAmount: BigInt!
+  poolTokensMinted: BigInt!
+}
+
+type RemoveLiquidityEvent @entity {
+  id: ID!
+  userPool: UserPoolData!
+  blockHeight: BigInt!
+  amount: BigInt!
+  tokenAmount: BigInt!
+  poolTokensBurned: BigInt!
+}
+
+type SwapEvent @entity {
+  id: ID!
+  # userPool: UserPoolData!
+  blockHeight: BigInt!
+  from: User!
+  to: User!
+  path: String!
+  amountIn: BigInt!
+  amountOut: BigInt!
+}
+
+type TokenPurchaseEvent @entity {
+  id: ID!
+  userPool: UserPoolData!
+  blockHeight: BigInt!
+  amount: BigInt!
+  tokenAmount: BigInt!
+  tokenFee: BigInt!
+  fee: BigInt!
+}
+
+type EthPurchaseEvent @entity {
+  id: ID!
+  userPool: UserPoolData!
+  blockHeight: BigInt!
+  amount: BigInt!
+  tokenAmount: BigInt!
+  tokenFee: BigInt!
+  fee: BigInt!
 }

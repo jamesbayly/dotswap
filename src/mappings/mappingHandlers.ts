@@ -3,40 +3,155 @@ import {
   SubstrateEvent,
   SubstrateBlock,
 } from "@subql/types";
-import { StarterEntity } from "../types";
+import {
+  AddLiquidityEvent,
+  createPoolDatasource,
+  Pool,
+  SwapEvent,
+  User,
+  UserPoolData,
+} from "../types";
 import { Balance } from "@polkadot/types/interfaces";
+import { from } from "rxjs";
 
-export async function handleBlock(block: SubstrateBlock): Promise<void> {
-  //Create a new starterEntity with ID using block hash
-  let record = new StarterEntity(block.block.header.hash.toString());
-  //Record block number
-  record.field1 = block.block.header.number.toNumber();
-  await record.save();
+async function checkCreateUser(id: string): Promise<string> {
+  const cleanID = id.toLowerCase().trim();
+  const user = User.get(cleanID);
+  if (!user) {
+    await User.create({
+      id: cleanID,
+    }).save();
+  }
+  return cleanID;
 }
 
-export async function handleEvent(event: SubstrateEvent): Promise<void> {
+async function checkCreateUserPool(
+  poolID: string,
+  userID: string
+): Promise<string> {
+  const id = `${poolID.toLowerCase().trim()}-${userID.toLowerCase().trim()}`;
+  const userPoolData = UserPoolData.get(id);
+  if (!userPoolData) {
+    await UserPoolData.create({
+      id: id,
+      userId: userID.toLowerCase().trim(),
+      PoolId: poolID.toLowerCase().trim(),
+    }).save();
+  }
+  return id;
+}
+
+export async function handlePoolCreated(event: SubstrateEvent): Promise<void> {
+  logger.info(
+    "New Pool Created at " + event.block.block.header.number.toString()
+  );
+  logger.info(JSON.stringify(event));
   const {
     event: {
-      data: [account, balance],
+      data: [creator, poolID, lpToken],
     },
   } = event;
-  //Retrieve the record by its ID
-  const record = await StarterEntity.get(
-    event.block.block.header.hash.toString()
-  );
-  record.field2 = account.toString();
-  //Big integer type Balance of a transfer event
-  record.field3 = (balance as Balance).toBigInt();
-  await record.save();
+
+  const creatorId = await checkCreateUser(creator.toString());
+
+  await Pool.create({
+    id: poolID.toString(),
+    createdAtBlockHeight: event.block.block.header.number.toBigInt(),
+    creatorId,
+    lpToken: lpToken.toString(),
+  }).save();
+  await createPoolDatasource();
 }
 
-export async function handleCall(extrinsic: SubstrateExtrinsic): Promise<void> {
-  const record = await StarterEntity.get(
-    extrinsic.block.block.header.hash.toString()
+export async function handleLiquidityAdded(
+  event: SubstrateEvent
+): Promise<void> {
+  logger.info(
+    "New Liquidity Added at " + event.block.block.header.number.toString()
   );
-  //Date type timestamp
-  record.field4 = extrinsic.block.timestamp;
-  //Boolean tyep
-  record.field5 = true;
-  await record.save();
+  logger.info(JSON.stringify(event));
+  const {
+    event: {
+      data: [
+        who,
+        mint_to,
+        pool_id,
+        amount1_provided,
+        amount2_provided,
+        lp_token,
+        lp_token_minted,
+      ],
+    },
+  } = event;
+
+  const creatorID = await checkCreateUser(who.toString());
+  const userPoolId = await checkCreateUserPool(pool_id.toString(), creatorID);
+
+  await AddLiquidityEvent.create({
+    id: `${event.block.block.header.number.toNumber()}-${event.idx}`,
+    userPoolId,
+    blockHeight: event.block.block.header.number.toBigInt(),
+    amount: BigInt(amount1_provided.toString()),
+    tokenAmount: BigInt(amount2_provided.toString()),
+    poolTokensMinted: BigInt(lp_token_minted.toString()),
+  }).save();
+}
+
+export async function handleLiquidityRemoved(
+  event: SubstrateEvent
+): Promise<void> {
+  logger.info(
+    "New Liquiditiy Removed at " + event.block.block.header.number.toString()
+  );
+  logger.info(JSON.stringify(event));
+  const {
+    event: {
+      data: [
+        who,
+        withdraw_to,
+        pool_id,
+        amount1,
+        amount2,
+        lp_token,
+        lp_token_burned,
+      ],
+    },
+  } = event;
+
+  const creatorID = await checkCreateUser(who.toString());
+  const userPoolId = await checkCreateUserPool(pool_id.toString(), creatorID);
+
+  await AddLiquidityEvent.create({
+    id: `${event.block.block.header.number.toNumber()}-${event.idx}`,
+    userPoolId,
+    blockHeight: event.block.block.header.number.toBigInt(),
+    amount: BigInt(amount1.toString()),
+    tokenAmount: BigInt(amount2.toString()),
+    poolTokensMinted: BigInt(lp_token_burned.toString()),
+  }).save();
+}
+
+export async function handleSwapExecuted(event: SubstrateEvent): Promise<void> {
+  logger.info("New Swap at " + event.block.block.header.number.toString());
+  logger.info(JSON.stringify(event));
+  const {
+    event: {
+      data: [who, send_to, path, amount_in, amount_out],
+    },
+  } = event;
+
+  const fromId = await checkCreateUser(who.toString());
+  const toId = await checkCreateUser(send_to.toString());
+  //const userPoolID = await checkCreateUserPool(pool_id.toString(), creatorID);
+
+  await SwapEvent.create({
+    id: `${event.block.block.header.number.toNumber()}-${event.idx}`,
+    // userPoolId: userPoolID,
+    blockHeight: event.block.block.header.number.toBigInt(),
+    fromId,
+    toId,
+    path: path.toString(),
+    amountIn: BigInt(amount_in.toString()),
+    amountOut: BigInt(amount_out.toString()),
+  }).save();
 }
