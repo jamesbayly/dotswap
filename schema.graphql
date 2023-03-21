@@ -9,7 +9,7 @@ type Dex @entity {
 type Pool @entity {
   id: ID! # DEX Pool address
   createdAtBlockHeight: BigInt!
-  # createdAtTimestamp: BigInt!
+  createdAtTimestamp: BigInt!
   creator: User!
   lpToken: String!
 }
@@ -22,13 +22,16 @@ type User @entity {
 type UserPoolData @entity {
   id: ID! # ID is concatenation of Pool and user address
   user: User!
-  Pool: Pool!
+  pool: Pool!
+  totalLiquidity: BigInt!
 }
 
 type AddLiquidityEvent @entity {
   id: ID!
   userPool: UserPoolData!
+  pool: Pool!
   blockHeight: BigInt!
+  timestamp: BigInt!
   amount: BigInt! # In DOT
   tokenAmount: BigInt!
   poolTokensMinted: BigInt!
@@ -37,7 +40,9 @@ type AddLiquidityEvent @entity {
 type RemoveLiquidityEvent @entity {
   id: ID!
   userPool: UserPoolData!
+  pool: Pool!
   blockHeight: BigInt!
+  timestamp: BigInt!
   amount: BigInt!
   tokenAmount: BigInt!
   poolTokensBurned: BigInt!
@@ -45,8 +50,10 @@ type RemoveLiquidityEvent @entity {
 
 type SwapEvent @entity {
   id: ID!
-  # userPool: UserPoolData!
+  userPool: UserPoolData!
+  pool: Pool!
   blockHeight: BigInt!
+  timestamp: BigInt!
   from: User!
   to: User!
   path: String!
@@ -58,6 +65,7 @@ type TokenPurchaseEvent @entity {
   id: ID!
   userPool: UserPoolData!
   blockHeight: BigInt!
+  timestamp: BigInt!
   amount: BigInt!
   tokenAmount: BigInt!
   tokenFee: BigInt!
@@ -68,8 +76,18 @@ type EthPurchaseEvent @entity {
   id: ID!
   userPool: UserPoolData!
   blockHeight: BigInt!
+  timestamp: BigInt!
   amount: BigInt!
   tokenAmount: BigInt!
   tokenFee: BigInt!
   fee: BigInt!
+}
+
+type PoolDailySummary @entity {
+  id: ID! # poolID-Date
+  dateString: String! # Date in a UTC string e.g. 2023-01-23
+  timestamp: BigInt!
+  pool: Pool!
+  dailyVolume: BigInt!
+  dailyFees: BigInt!
 }

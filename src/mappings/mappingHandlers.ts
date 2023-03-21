@@ -7,6 +7,7 @@ import {
   AddLiquidityEvent,
   createPoolDatasource,
   Pool,
+  PoolDailySummary,
   SwapEvent,
   User,
   UserPoolData,
@@ -154,4 +155,39 @@ export async function handleSwapExecuted(event: SubstrateEvent): Promise<void> {
     amountIn: BigInt(amount_in.toString()),
     amountOut: BigInt(amount_out.toString()),
   }).save();
+}
+
+export async function handleDailyUpdates(block: SubstrateBlock): Promise<void> {
+  logger.info(
+    "Starting daily update at " + block.block.header.number.toString()
+  );
+  const currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0);
+  const timestamp = BigInt(currentDate.getTime());
+  const dateString: string = currentDate.toISOString().slice(0, 10);
+
+  const dailyPoolSummaries: PoolDailySummary[] = [];
+  const pools: Pool[] = await Pool.getAll();
+  for (const pool of pools) {
+    const swaps: SwapEvent[] = (await store.getByField(
+      "SwapEvent",
+      "poolID",
+      pool.id
+    )) as SwapEvent[];
+    dailyPoolSummaries.push(
+      PoolDailySummary.create({
+        id: `${pool.id}-${dateString}`,
+        dateString,
+        timestamp,
+        poolId: pool.id,
+        dailyVolume: swaps.reduce((a, b) => {
+          return a + b.amountIn;
+        }, BigInt(0)),
+        dailyFees: swaps.reduce((a, b) => {
+          return a + b.amountOut;
+        }, BigInt(0)),
+      })
+    );
+  }
+  await store.bulkCreate("PoolDailySummary", dailyPoolSummaries);
 }

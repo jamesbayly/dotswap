@@ -34,6 +34,11 @@ dataSources:
           filter:
             module: dex
             method: PoolCreated
+        - handler: handleDailyUpdates
+          kind: substrate/BlockHandler
+          filter:
+            # This cron expression will index blocks with at least 24 hours interval at midnight UTC
+            timestamp: "0 0 * * *"
 
 templates:
   - name: Pool
